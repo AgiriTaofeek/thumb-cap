@@ -3,10 +3,17 @@ main:
   steps:
   - init:
       assign:
-      - videoId: ${event.videoId}
-      - gcsUri: ${event.gcsUri}
-      - title: ${event.title}
-      - language: ${event.language}
+      - bucket: ${event.data.bucket}
+      - object: ${event.data.name}
+      - gcsUri: ${"gs://" + bucket + "/" + object}
+      - videoId: ${sys.uuid()}
+      - title: ${object}
+      - language: "en"
+  - processStart:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/process"}
+        body: { videoId: ${videoId}, gcsUri: ${gcsUri}, title: ${title}, language: ${language} }
   - extractFrames:
       call: http.post
       args:
@@ -40,4 +47,4 @@ main:
       call: http.post
       args:
         url: ${"https://<BACKEND_URL>/captions/" + videoId + "/generate"}
-        body: { transcript: "<transcript>", keywords: ["thumbnail","CTR"] }
+        body: { transcript: "Mock transcript", keywords: ["thumbnail","CTR"] }

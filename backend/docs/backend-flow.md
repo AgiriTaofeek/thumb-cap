@@ -26,6 +26,23 @@
   - Hook: POST /hooks/pubsub validates token, decodes payload, and starts pipeline when type === "video_uploaded".
     - Code: backend/src/features/orchestration/hooks.router.ts:7-28
 
+## Alternative Trigger (Eventarc → Workflows)
+
+- Use Eventarc to route Cloud Storage direct events to Workflows, eliminating the custom Pub/Sub push to the backend.
+  - When an object is finalized in `gs://thumbcap-uploads`, Eventarc triggers the workflow and passes the CloudEvent payload as runtime arguments.
+- Prerequisites:
+  - Enable APIs: `eventarc.googleapis.com`, `eventarcpublishing.googleapis.com`, `workflows.googleapis.com`, `workflowexecutions.googleapis.com`, `storage.googleapis.com`.
+  - Create a service account for invoking Workflows and grant `roles/workflows.invoker`.
+  - Grant `roles/pubsub.publisher` to the Cloud Storage service agent (usually `service-PROJECT_NUMBER@gs-project-accounts.iam.gserviceaccount.com`).
+- Create trigger (locations must match the bucket’s region):
+  - `gcloud eventarc triggers create storage-to-workflow --location=us-central1 --destination-workflow=<WORKFLOW_NAME> --event-filters="type=google.cloud.storage.object.v1.finalized" --event-filters="bucket=thumbcap-uploads" --service-account=<SA_EMAIL>`
+- Notes:
+  - CloudEvents payload is delivered to Workflows and available to steps as JSON arguments.
+  - Ensure event size stays within Workflows argument limits.
+  - Bucket region must match trigger location (single/dual/multi-region support per Eventarc).
+- Flow:
+  - Upload → Cloud Storage emits finalize → Eventarc triggers Workflows → Workflow calls backend endpoints (extract, vision, thumbnails, captions) per `backend/workflows/thumbcap.yaml`.
+
 ## Orchestration & Status
 
 - Pipeline steps (simulated timers) move the video through states and record runs:

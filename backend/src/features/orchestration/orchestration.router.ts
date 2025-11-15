@@ -32,7 +32,10 @@ router.post("/process", (req: Request & { id?: string }, res: Response) => {
   if (pubsubEnabled)
     retry(
       () =>
-        publishMessage({ type: "video_uploaded", videoId: id, gcsUri, title, language: language || "en" }),
+        publishMessage(
+          { type: "video_uploaded", videoId: id, gcsUri, title, language: language || "en" },
+          { token: String(process.env.PUBSUB_TOKEN || '') }
+        ),
       { retries: 2, baseMs: 300 }
     ).catch(() => {})
   res.json({ videoId: id })
