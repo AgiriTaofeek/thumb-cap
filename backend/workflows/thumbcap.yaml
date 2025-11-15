@@ -1,0 +1,43 @@
+main:
+  params: [event]
+  steps:
+  - init:
+      assign:
+      - videoId: ${event.videoId}
+      - gcsUri: ${event.gcsUri}
+      - title: ${event.title}
+      - language: ${event.language}
+  - extractFrames:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/frames/" + videoId + "/extract"}
+        body: { frequencySec: 5, mode: "interval" }
+  - syncFrames:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/frames/" + videoId + "/sync"}
+        body: {}
+  - visionAnalyze:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/vision/" + videoId + "/analyze"}
+  - generateThumbnails:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/thumbnails/" + videoId + "/generate"}
+        body: {}
+  - scoreThumbnails:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/thumbnails/" + videoId + "/score"}
+        body: { title: ${title}, keywords: ["thumbnail","CTR"] }
+  - transcribe:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/captions/transcribe/" + videoId}
+        body: { gcsUri: ${gcsUri}, languageCode: ${language} }
+  - captions:
+      call: http.post
+      args:
+        url: ${"https://<BACKEND_URL>/captions/" + videoId + "/generate"}
+        body: { transcript: "<transcript>", keywords: ["thumbnail","CTR"] }
