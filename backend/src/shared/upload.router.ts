@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { Storage } from "@google-cloud/storage";
+import { log } from "../logger.js";
 
 let gcsStorage: any = null;
 function ensureStorage() {
@@ -23,13 +24,24 @@ router.post(
     const objectName = `${uuidv4()}_${fileName}`;
     const gcsBucket: string | null = process.env.GCS_BUCKET || null;
 
-    // console.log({ gcsBucket, gcsStorage });
+    if (!gcsBucket) {
+      log("warn", "upload.no_bucket", {});
+    }
 
     const storage = ensureStorage();
+    log("info", "upload.debug", {
+      fileName,
+      contentType,
+      GCS_BUCKET: gcsBucket,
+      storageInitialized: !!storage,
+    });
+
+    
     if (gcsBucket && storage) {
       try {
         const file = storage.bucket(gcsBucket).file(objectName);
         const [url] = await file.getSignedUrl({
+          version: "v4",
           action: "write",
           expires: Date.now() + 15 * 60 * 1000,
           contentType: contentType || "application/octet-stream",
@@ -40,9 +52,19 @@ router.post(
           provider: "gcs",
           resumable: false,
         });
-      } catch {}
+      } catch (e: any) {
+        log("error", "upload.sign_error", {
+          message: String((e && e.message) || e),
+        });
+      }
     }
     const uploadUrl = `memory://uploads/${objectName}`;
-    res.json({ uploadUrl, objectName, provider: "memory", resumable: false });
+    res.json({
+      uploadUrl,
+      objectName,
+      provider: "memory",
+      provider_reason: !gcsBucket ? "no_bucket" : "sign_failed",
+      resumable: false,
+    });
   }
 );
