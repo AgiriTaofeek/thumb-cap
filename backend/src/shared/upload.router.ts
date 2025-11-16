@@ -36,7 +36,6 @@ router.post(
       storageInitialized: !!storage,
     });
 
-    
     if (gcsBucket && storage) {
       try {
         const file = storage.bucket(gcsBucket).file(objectName);
