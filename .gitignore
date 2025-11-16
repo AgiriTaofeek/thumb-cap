@@ -33,3 +33,6 @@ tsconfig.tsbuildinfo
 **/tsconfig.tsbuildinfo
 
 **/.vite/
+
+backend/backend-local-sa.json
+
